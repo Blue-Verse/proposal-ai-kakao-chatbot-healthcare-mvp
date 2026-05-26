@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AI 기반 카카오톡 챗봇 서비스 MVP 개발 (OpenAI 연동) — 프로젝트 제안서" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['SUIT Variable', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              600: '#0284c7',
+              700: '#0369a1'
+            }
+          },
+          boxShadow: {
+            soft: '0 10px 30px -18px rgba(15, 23, 42, 0.35)'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root { color-scheme: light; font-size: 16px; }
+    body {
+      font-family: 'SUIT Variable', sans-serif;
+      font-size: 1rem;
+      background-image:
+        radial-gradient(circle at 12% 18%, rgba(14, 165, 233, 0.08), transparent 42%),
+        radial-gradient(circle at 88% 82%, rgba(2, 132, 199, 0.06), transparent 48%);
+    }
+    .doc-content h1, .doc-content h2, .doc-content h3, .doc-content h4 {
+      color: rgb(15 23 42); font-weight: 700; letter-spacing: -0.01em;
+      line-height: 1.3; margin-top: 1.6em; margin-bottom: 0.7em;
+    }
+    .doc-content h1 { font-size: 2rem; margin-top: 0.2em; }
+    .doc-content h2 { font-size: 1.4rem; }
+    .doc-content h3 { font-size: 1.15rem; }
+    .doc-content p, .doc-content li {
+      color: rgb(51 65 85); line-height: 1.8; font-size: 1rem;
+    }
+    .doc-content p, .doc-content ul, .doc-content ol,
+    .doc-content table, .doc-content pre, .doc-content blockquote {
+      margin-bottom: 1rem;
+    }
+    .doc-content ul, .doc-content ol { padding-left: 1.2rem; }
+    .doc-content ul { list-style: disc; }
+    .doc-content ol { list-style: decimal; }
+    .doc-content table {
+      width: 100%; border-collapse: collapse;
+      border: 1px solid rgb(226 232 240); border-radius: 0.75rem;
+      overflow: hidden; font-size: 1rem;
+    }
+    .doc-content th, .doc-content td {
+      border: 1px solid rgb(226 232 240); padding: 0.7rem 0.8rem;
+      text-align: left; vertical-align: top;
+    }
+    .doc-content th {
+      background: rgb(248 250 252); color: rgb(30 41 59); font-weight: 600;
+    }
+    .doc-content pre, .doc-content code {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+    .doc-content pre {
+      background: rgb(15 23 42); color: rgb(226 232 240);
+      padding: 1rem; border-radius: 0.75rem; overflow-x: auto;
+      font-size: 1rem; line-height: 1.65;
+    }
+    .doc-content p code, .doc-content li code,
+    .doc-content td code, .doc-content th code {
+      background: rgb(241 245 249); color: rgb(15 23 42);
+      border: 1px solid rgb(226 232 240); border-radius: 0.4rem;
+      padding: 0.08rem 0.4rem; font-size: 1em;
+    }
+    .doc-content blockquote {
+      border-left: 3px solid rgb(14 165 233); padding-left: 0.85rem;
+      color: rgb(71 85 105); background: rgb(240 249 255);
+      border-radius: 0.5rem; padding-top: 0.55rem; padding-bottom: 0.55rem;
+    }
+    .text-xs { font-size: 1rem !important; }
+    .timeline { position: relative; padding-left: 2rem; }
+    .timeline::before {
+      content: ''; position: absolute; left: 0.6rem; top: 0.25rem; bottom: 0.25rem;
+      width: 2px; background: rgb(186 230 253);
+    }
+    .timeline-item { position: relative; margin-bottom: 1.75rem; }
+    .timeline-item::before {
+      content: ''; position: absolute; left: -1.65rem; top: 0.35rem;
+      width: 0.75rem; height: 0.75rem; border-radius: 50%;
+      background: rgb(2 132 199); border: 3px solid rgb(224 242 254);
+    }
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+    #sidebar-backdrop { display: none; }
+    #sidebar-backdrop.open { display: block; }
+    @media (max-width: 1023px) {
+      #sidebar { transform: translateX(-100%); transition: transform 0.2s ease; position: fixed; top: 0; left: 0; z-index: 40; height: 100vh; width: 80vw; max-width: 320px; }
+      #sidebar.open { transform: translateX(0); }
+    }
+  </style>
+  <title>AI 기반 카카오톡 챗봇 서비스 MVP 개발 (OpenAI 연동) — 프로젝트 제안서</title>
+</head>
+<body class="text-slate-800 font-sans antialiased">
+  <div class="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">
+
+    <header class="mb-6 rounded-2xl border border-slate-200/70 bg-white/85 px-5 py-3 shadow-soft backdrop-blur">
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="sidebar-toggle" class="lg:hidden inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          메뉴
+        </button>
+        <a href="#home" class="inline-flex items-center shrink-0 text-sm font-bold tracking-tight text-slate-800">
+          프로젝트 제안서
+        </a>
+        <div class="hidden sm:block ml-auto text-right">
+          <p class="text-sm font-semibold tracking-[0.04em] text-sky-700/90">AI 기반 카카오톡 챗봇 헬스케어 MVP</p>
+          <p class="text-xs text-slate-400">프로젝트 제안서</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+
+      <div id="sidebar-backdrop" class="fixed inset-0 bg-black/30 z-30 lg:hidden" onclick="closeSidebar()"></div>
+      <aside id="sidebar" class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-soft backdrop-blur lg:sticky lg:top-6 lg:h-[calc(100vh-4rem)] lg:overflow-auto">
+        <nav id="nav" class="space-y-1">
+          <a href="#home" data-page="home" class="nav-link block rounded-xl border px-3 py-2 text-sm border-sky-200 bg-sky-50 font-medium text-sky-700">홈</a>
+          <div class="my-3 border-t border-slate-200"></div>
+          <p class="mb-2 mt-1 px-1 text-sm font-semibold tracking-[0.14em] text-slate-400">제안서</p>
+          <a href="#overview" data-page="overview" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">프로젝트 소개</a>
+          <a href="#estimate" data-page="estimate" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">견적서</a>
+          <a href="#manday" data-page="manday" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">공수계산서</a>
+          <a href="#prd" data-page="prd" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">PRD</a>
+          <div class="my-3 border-t border-slate-200"></div>
+          <p class="mb-2 mt-1 px-1 text-sm font-semibold tracking-[0.14em] text-slate-400">일정 & 경험</p>
+          <a href="#timeline" data-page="timeline" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">일정 제안</a>
+          <a href="#portfolio" data-page="portfolio" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">유사 프로젝트 경험</a>
+        </nav>
+      </aside>
+
+      <main class="min-w-0">
+
+        <!-- PAGE: Home -->
+        <div id="page-home" class="page-section active space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-soft backdrop-blur md:p-8">
+            <p class="mb-2 text-xs font-semibold tracking-[0.2em] text-sky-700/80">프로젝트 제안서</p>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">AI 기반 카카오톡 챗봇 서비스 MVP 개발 (OpenAI 연동)</h1>
+            <p class="mt-3 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">카카오톡 채널을 메인 인터페이스로 한 헬스케어 AI 챗봇 MVP를 60일 내 안정적으로 출시합니다. OpenAI GPT 기반 맞춤형 응답, 공공·민간 건강데이터 API 실시간 연동, 스케줄러 기반 알림톡 자동 발송, 운영 관리자 페이지까지 통합 구현하여 1차 MVP 이후 고도화까지 연속성 있는 협업을 제안드립니다.</p>
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <span class="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-sm font-semibold tracking-[0.12em] text-sky-700">13,500,000원 (VAT 별도)</span>
+              <span class="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-sm font-semibold tracking-[0.12em] text-sky-700">60일</span>
+              <span class="inline-flex rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-sm font-semibold tracking-[0.12em] text-amber-700">웹 SaaS · ChatGPT 챗봇 · Gen AI</span>
+              <a href="https://www.wishket.com/project/155589/" target="_blank" rel="noopener noreferrer"
+                 class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-500 transition hover:border-sky-300 hover:text-sky-700">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                원본 공고
+              </a>
+            </div>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <a href="#overview" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">소개</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">프로젝트 소개</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">프로젝트 분석, 핵심 요구사항 정리, 제안 포인트</p>
+            </a>
+            <a href="#estimate" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">비용</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">견적서</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">항목별 비용 산출 근거 및 상세 견적</p>
+            </a>
+            <a href="#manday" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">공수</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">공수계산서</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">기능별 개발 공수(man-day) 산출 내역</p>
+            </a>
+            <a href="#prd" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-amber-100 text-amber-700 border-amber-200">기획</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">PRD</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">기능 요구사항 정의서, 사용자 스토리, 기술 제약</p>
+            </a>
+            <a href="#timeline" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-amber-100 text-amber-700 border-amber-200">일정</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">일정 제안</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">단계별 마일스톤 및 산출물 일정표</p>
+            </a>
+            <a href="#portfolio" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-amber-100 text-amber-700 border-amber-200">경험</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">유사 프로젝트 경험</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">유사 프로젝트 수행 경험 및 기술 스택</p>
+            </a>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">60일</p>
+              <p class="mt-1 text-sm text-slate-500">납기 준수 일정</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">OpenAI</p>
+              <p class="mt-1 text-sm text-slate-500">GPT API 실서비스 연동</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">헬스케어</p>
+              <p class="mt-1 text-sm text-slate-500">AI 건강 분석 실적</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">5+개</p>
+              <p class="mt-1 text-sm text-slate-500">외부 API 동시 연동 경험</p>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50 to-brand-50 p-6 text-center shadow-soft md:p-10">
+            <h2 class="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">함께 만들어 가겠습니다</h2>
+            <p class="mx-auto mt-3 max-w-lg text-sm leading-7 text-slate-600">각 메뉴를 클릭하시면 상세 내용을 확인하실 수 있습니다.</p>
+          </div>
+        </div>
+
+        <!-- PAGE: Overview -->
+        <div id="page-overview" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>프로젝트 소개</h1>
+              <blockquote>카카오톡 채널을 메인 인터페이스로 한 헬스케어 AI 챗봇 MVP를 60일 내 안정적으로 출시합니다. OpenAI GPT 기반 맞춤형 응답, 공공·민간 건강데이터 API 실시간 연동, 스케줄러 기반 알림톡 자동 발송, 운영 관리자 페이지까지 통합 구현하여 1차 MVP 이후 고도화까지 연속성 있는 협업을 제안드립니다.</blockquote>
+
+              <h2>프로젝트 개요</h2>
+              <table>
+                <tr><th>항목</th><th>내용</th></tr>
+                <tr><td>프로젝트명</td><td><a href="https://www.wishket.com/project/155589/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline decoration-sky-300 hover:decoration-sky-500">AI 기반 카카오톡 챗봇 서비스 MVP 개발 (OpenAI 연동)</a></td></tr>
+                <tr><td>카테고리</td><td>개발 - 웹 SaaS·솔루션, ChatGPT·챗봇, Gen AI 서비스</td></tr>
+                <tr><td>도메인</td><td>공공·민간 건강데이터 기반 개인 맞춤형 헬스케어</td></tr>
+                <tr><td>제안 금액</td><td>13,500,000원 (VAT 별도)</td></tr>
+                <tr><td>제안 기간</td><td>60일 (계약 체결 이후 즉시 착수)</td></tr>
+                <tr><td>핵심 기술</td><td>NestJS, Next.js, PostgreSQL, AWS (EC2/RDS/S3/Lambda), OpenAI GPT API, 카카오 i 오픈빌더, 알림톡 API, AWS EventBridge</td></tr>
+              </table>
+
+              <h2>핵심 요구사항 분석</h2>
+              <ul>
+                <li>카카오톡 채널 챗봇 구축 — 카카오 i 오픈빌더 스킬서버 또는 Webhook 기반, NDA 후 확정</li>
+                <li>OpenAI GPT API 연동 — 맞춤형 대화 및 건강 데이터 기반 분석 기능</li>
+                <li>공공기관 API 3~5개 연동 — data.go.kr 등 건강·복지 데이터 실시간 호출</li>
+                <li>외부 민간 API 1~2개 연동 — 본인인증 기반 데이터 자동 수집 (PASS/NICE 계열 예상)</li>
+                <li>사용자 데이터 저장 — 프로필, 대화 이력, 점수 산출 결과 등 기본 DB 구조 설계</li>
+                <li>서버 스케줄러 기반 자동 알림 발송 — Cron Job + 카카오 알림톡 API(Aligo 등) 연동</li>
+                <li>관리자 페이지 — 사용자 현황 대시보드, 대화 로그 확인, 설정 관리</li>
+                <li>AWS 기반 인프라 — EC2/RDS/S3/Lambda 활용, 비용 최적화 구성</li>
+                <li>특허 출원된 점수 산출 로직 — NDA 체결 후 정의서 기반 구현</li>
+                <li>정부지원 결과 보고서 제출 가능한 산출물 패키징</li>
+              </ul>
+
+              <h2>제안 포인트</h2>
+              <h3>1. 헬스케어 + OpenAI 분석 실서비스 운영 경험</h3>
+              <p>시니어 헬스케어 SaaS Harmony Link에서 OpenAI 기반 건강 분석, 케어 로그·투약·알림 시스템을 직접 설계·운영한 경험을 보유하고 있습니다. 본 프로젝트의 "건강 데이터 → GPT 분석 → 맞춤형 응답" 흐름을 즉시 구현 가능한 노하우를 그대로 적용합니다.</p>
+
+              <h3>2. 카카오톡 채널 챗봇 아키텍처 설계 역량</h3>
+              <p>카카오 i 오픈빌더 스킬서버 방식과 Webhook 직접 호출 방식의 트레이드오프(상태관리, 응답 지연, 운영 편의성)를 기획 단계에서 비교 검토하여 클라이언트 요구사항에 최적화된 구조를 제안합니다. 응답 5초 제한 대응을 위한 Callback API 활용 방안까지 사전 설계합니다.</p>
+
+              <h3>3. 다중 외부 API 안정 연동 노하우</h3>
+              <p>P2P Funding 프로젝트에서 NICE 본인인증(CheckPlus, SafeKey, NPAC) + 가상계좌 + 다수 금융 API를 동시 안정 연동한 경험, Series-B에서 ChatGPT + KYC + 다수 규제 API를 단일 백엔드에서 통합 운용한 경험을 본 프로젝트에 그대로 적용합니다. 공공 API의 일시적 장애나 응답 지연에 대한 재시도·캐싱·폴백 정책을 표준 패턴으로 적용합니다.</p>
+
+              <h3>4. 60일 일정 준수 (1순위 부합)</h3>
+              <p>유사 풀스택 + 외부 API + AI 챗봇 프로젝트를 60일 내 MVP 단계로 출시한 경험을 기준으로 본 프로젝트의 일정을 산정했습니다. Phase별 마일스톤 검수와 주 1회 정기 미팅으로 일정 리스크를 사전 차단합니다.</p>
+
+              <h3>5. 정부지원사업 결과 보고서 대응</h3>
+              <p>요구사항 정의서, 화면설계서, IA, API 연동 명세서, 결과 산출물 패키지를 정부지원사업 결과 보고에 활용 가능한 형식으로 일관되게 정리하여 납품합니다.</p>
+
+              <h3>6. 월 단위 유지보수 및 2·3차 고도화 연속 협업</h3>
+              <p>MVP 출시 이후 월 단위 유지보수, 2차/3차 고도화까지 동일한 팀이 연속 수행할 수 있습니다. 코드베이스 인수인계 비용 없이 빠른 기능 추가가 가능합니다.</p>
+
+              <h2>사용 기술 및 툴</h2>
+              <h3>개발 기술</h3>
+              <div class="flex flex-wrap gap-2 not-prose mb-4">
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">NestJS</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">TypeScript</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">Next.js</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">PostgreSQL</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">AWS EC2/RDS/S3/Lambda</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">OpenAI GPT API</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">카카오 i 오픈빌더</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">카카오 알림톡 API</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">Node-cron / EventBridge</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">Docker</span>
+              </div>
+              <h3>협업 및 커뮤니케이션</h3>
+              <div class="flex flex-wrap gap-2 not-prose">
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">Slack / 카카오톡</span>
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">Zoom / Google Meet</span>
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">Notion / Google Docs</span>
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">GitHub Issues</span>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <!-- PAGE: Estimate -->
+        <div id="page-estimate" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>견적서</h1>
+              <blockquote>본 견적서는 공고에 명시된 7개 개발 범위(카카오톡 챗봇, OpenAI 연동, 공공·민간 API, DB, 스케줄러, 관리자 페이지, AWS 인프라)를 기준으로 산출되었습니다.</blockquote>
+
+              <h2>견적 요약</h2>
+              <table>
+                <tr><th>항목</th><th>내용</th></tr>
+                <tr><td>프로젝트명</td><td>AI 기반 카카오톡 챗봇 서비스 MVP 개발 (OpenAI 연동)</td></tr>
+                <tr><td>제안 금액</td><td><strong>13,500,000원 (VAT 별도)</strong></td></tr>
+                <tr><td>제안 기간</td><td>60일</td></tr>
+                <tr><td>지급 조건</td><td>계약 시 30% / 중간 검수 시 40% / 최종 검수 시 30% (협의 가능)</td></tr>
+                <tr><td>견적 유효기간</td><td>제안일로부터 30일</td></tr>
+              </table>
+
+              <h2>상세 견적 내역</h2>
+              <table>
+                <thead>
+                  <tr><th>구분</th><th>항목</th><th>수량</th><th>금액</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>기획/설계</td><td>요구사항 분석, IA·화면설계서 검토, API 연동 명세 정리, DB 모델링</td><td>1식</td><td>1,350,000원</td></tr>
+                  <tr><td>카카오톡 챗봇</td><td>채널 연결, 오픈빌더/Webhook 스킬서버, 시나리오 라우팅, Callback 응답</td><td>1식</td><td>2,025,000원</td></tr>
+                  <tr><td>OpenAI 연동</td><td>GPT API 연동, 프롬프트 엔지니어링, 컨텍스트/대화이력 관리, 비용 가드</td><td>1식</td><td>2,025,000원</td></tr>
+                  <tr><td>외부 API 연동</td><td>공공기관 API 3~5개 + 민간 API 1~2개(본인인증 기반), 재시도·캐싱 정책</td><td>1식</td><td>2,700,000원</td></tr>
+                  <tr><td>스케줄러/알림톡</td><td>EventBridge/Cron 스케줄러, 카카오 알림톡 템플릿 발송, 발송 로그 관리</td><td>1식</td><td>1,350,000원</td></tr>
+                  <tr><td>관리자 페이지</td><td>대시보드(가입·활성 사용자, 발송 통계), 대화 로그 검색, 설정 관리</td><td>1식</td><td>2,025,000원</td></tr>
+                  <tr><td>인프라/배포</td><td>AWS 환경 셋업(EC2/RDS/S3/Lambda), 도메인·HTTPS, CI/CD 1회 구성</td><td>1식</td><td>1,080,000원</td></tr>
+                  <tr><td>QA/문서/하자보수</td><td>통합 테스트, 사용자 시나리오 검증, 운영/배포 문서, 1개월 무상 하자보수</td><td>1식</td><td>945,000원</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr><th colspan="3">합계 (VAT 별도)</th><th>13,500,000원</th></tr>
+                </tfoot>
+              </table>
+
+              <h2>산정 근거</h2>
+              <ul>
+                <li>공고 명시 개발 범위(7개 영역)와 클라이언트 보유 산출물(요구사항 정의서, 화면설계서, IA, API 연동 명세서) 기반으로 공수 산정</li>
+                <li>유사 프로젝트(헬스케어 AI 분석, OpenAI 연동, 다중 외부 API 안정 연동) 수행 경험 반영</li>
+                <li>외부 API 연동·본인인증 도메인 특성을 고려하여 보안 리뷰 및 통합 테스트 공수 포함</li>
+                <li>정부지원사업 결과 보고에 필요한 산출물 작성 공수 포함</li>
+              </ul>
+
+              <h2>포함 사항</h2>
+              <ul>
+                <li>소스 코드 전체 이관 (GitHub Private Repo)</li>
+                <li>개발 문서 (API 명세서, DB 스키마, 배포 가이드, 운영 매뉴얼)</li>
+                <li>요구사항 정의서·화면 정의서 갱신본 (기존 문서 보완)</li>
+                <li>정부지원사업 결과 보고서 작성 지원용 산출물 패키지</li>
+                <li>1개월 무상 하자 보수</li>
+                <li>AWS 환경 세팅 1회 (클라이언트 계정 기준)</li>
+              </ul>
+
+              <h2>불포함 사항</h2>
+              <ul>
+                <li>AWS 서버 호스팅 비용 (EC2, RDS, S3, Lambda 사용료)</li>
+                <li>OpenAI GPT API 사용 비용</li>
+                <li>카카오 알림톡(Aligo 등) 발송 비용 및 카카오 채널 운영비</li>
+                <li>본인인증 외부 민간 API 사용 비용</li>
+                <li>도메인 구매 비용</li>
+                <li>하자 보수 기간 이후 유지보수 (별도 월 단위 유지보수 계약으로 협의 가능)</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+
+        <!-- PAGE: Manday -->
+        <div id="page-manday" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>공수계산서</h1>
+              <blockquote>기능별 개발 공수(Man-Day)를 산출하여 일정과 비용의 근거를 제시합니다.</blockquote>
+
+              <h2>공수 요약</h2>
+              <table>
+                <tr><th>구분</th><th>공수 (M/D)</th><th>비율</th></tr>
+                <tr><td>기획/설계</td><td>3 M/D</td><td>8.3%</td></tr>
+                <tr><td>카카오톡 챗봇 구축</td><td>5 M/D</td><td>13.9%</td></tr>
+                <tr><td>OpenAI GPT 연동</td><td>5 M/D</td><td>13.9%</td></tr>
+                <tr><td>외부 API 연동 (공공+민간)</td><td>7 M/D</td><td>19.4%</td></tr>
+                <tr><td>스케줄러/알림톡</td><td>3 M/D</td><td>8.3%</td></tr>
+                <tr><td>관리자 페이지</td><td>6 M/D</td><td>16.7%</td></tr>
+                <tr><td>인프라/배포</td><td>2 M/D</td><td>5.6%</td></tr>
+                <tr><td>QA/문서</td><td>5 M/D</td><td>13.9%</td></tr>
+                <tr><th>합계</th><th>36 M/D</th><th>100%</th></tr>
+              </table>
+
+              <h2>기능별 상세 공수</h2>
+              <table>
+                <thead>
+                  <tr><th>기능</th><th>세부 작업</th><th>담당</th><th>공수 (M/D)</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td rowspan="2">기획/설계</td><td>요구사항·화면설계서 검토, IA 보완, API 명세 매핑</td><td>기획</td><td>2</td></tr>
+                  <tr><td>DB 모델링 (회원/대화이력/점수/발송로그)</td><td>BE</td><td>1</td></tr>
+
+                  <tr><td rowspan="3">카카오톡 챗봇</td><td>카카오 채널 셋업, 오픈빌더 시나리오 구성</td><td>BE</td><td>1.5</td></tr>
+                  <tr><td>스킬서버/Webhook 엔드포인트, 메시지 라우팅</td><td>BE</td><td>2</td></tr>
+                  <tr><td>Callback 응답(5초 제한 대응), 멀티턴 상태관리</td><td>BE</td><td>1.5</td></tr>
+
+                  <tr><td rowspan="3">OpenAI GPT 연동</td><td>SDK 연동, 시스템 프롬프트/페르소나 설계</td><td>BE</td><td>1.5</td></tr>
+                  <tr><td>대화 컨텍스트 관리, 토큰 비용 가드</td><td>BE</td><td>2</td></tr>
+                  <tr><td>건강 데이터 기반 분석 응답 로직 (특허 로직 반영)</td><td>BE</td><td>1.5</td></tr>
+
+                  <tr><td rowspan="3">외부 API 연동</td><td>공공기관 API 3~5개 연동 + 응답 정규화</td><td>BE</td><td>3</td></tr>
+                  <tr><td>민간 본인인증 API + 데이터 자동 수집</td><td>BE</td><td>2.5</td></tr>
+                  <tr><td>재시도·캐싱·폴백 정책, 장애 대응 로깅</td><td>BE</td><td>1.5</td></tr>
+
+                  <tr><td rowspan="2">스케줄러/알림톡</td><td>EventBridge/Cron 스케줄러, 발송 큐</td><td>BE</td><td>1.5</td></tr>
+                  <tr><td>카카오 알림톡 템플릿 등록·발송·발송결과 수신</td><td>BE</td><td>1.5</td></tr>
+
+                  <tr><td rowspan="3">관리자 페이지</td><td>Next.js 어드민 셸 (인증, 레이아웃, 라우팅)</td><td>FE</td><td>1.5</td></tr>
+                  <tr><td>사용자 현황 대시보드 (가입·활성·발송 통계)</td><td>FE</td><td>2</td></tr>
+                  <tr><td>대화 로그 검색/필터, 설정 관리</td><td>FE</td><td>2.5</td></tr>
+
+                  <tr><td rowspan="2">인프라/배포</td><td>AWS 환경 셋업 (EC2/RDS/S3/Lambda/IAM)</td><td>DevOps</td><td>1</td></tr>
+                  <tr><td>도메인·HTTPS·CI/CD 1회 구성</td><td>DevOps</td><td>1</td></tr>
+
+                  <tr><td rowspan="3">QA/문서</td><td>통합 테스트, 사용자 시나리오 검증</td><td>QA</td><td>2.5</td></tr>
+                  <tr><td>API 명세서, DB 스키마, 운영 매뉴얼 작성</td><td>BE/FE</td><td>1.5</td></tr>
+                  <tr><td>정부지원 결과 보고 산출물 패키징</td><td>PM</td><td>1</td></tr>
+                </tbody>
+              </table>
+
+              <h2>산정 기준</h2>
+              <ul>
+                <li>1 M/D = 8시간 기준 (1인 1일 작업량)</li>
+                <li>주 5일 근무 기준 (달력 일수 환산 시 주말 반영)</li>
+                <li>버퍼 10~15% 포함 (외부 API 연동 안정성 확보 시간 반영)</li>
+                <li>유사 프로젝트(헬스케어 AI 분석, ChatGPT 연동, 다중 외부 API 안정 연동) 수행 경험 기반 효율적 개발</li>
+                <li>클라이언트가 보유한 상세 기획서/화면설계서/IA/API 연동 명세서로 인한 기획 공수 절감 반영</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+
+        <!-- PAGE: PRD -->
+        <div id="page-prd" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>PRD (Product Requirements Document)</h1>
+              <blockquote>NDA 체결 후 공유될 상세 정의서(특허 로직, 화면설계서, API 연동 명세서)에 따라 본 PRD는 확정·보완됩니다. 본 문서는 공고 본문 기준 1차 안입니다.</blockquote>
+
+              <h2>1. 프로젝트 배경 및 목적</h2>
+              <p>개인의 건강 상태와 라이프스타일에 맞춘 헬스케어 서비스를 카카오톡 채널이라는 친숙한 인터페이스로 제공하는 것이 본 프로젝트의 핵심 목표입니다. 사용자는 별도 앱 설치 없이 카카오톡에서 대화를 주고받는 것만으로 공공·민간 건강데이터 기반 개인 맞춤형 분석을 받고, 정기 알림톡으로 행동 유도까지 이어지는 경험을 얻게 됩니다. MVP 단계에서는 복잡한 기능보다 핵심 가설(카카오톡 인터페이스 + AI 분석 + 자동 알림) 검증과 빠른 출시를 우선합니다.</p>
+
+              <h2>2. 사용자 정의</h2>
+              <table>
+                <thead>
+                  <tr><th>사용자 유형</th><th>설명</th><th>주요 기능</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>일반 사용자</td><td>카카오톡 채널을 통해 헬스케어 챗봇과 대화하는 최종 이용자</td><td>채널 친구추가, 본인인증, 건강 데이터 자동 수집, AI 맞춤 대화·분석, 정기 알림 수신</td></tr>
+                  <tr><td>운영 관리자</td><td>클라이언트 내부 운영자, 콘텐츠 검수 및 발송 운영</td><td>사용자 현황 대시보드, 대화 로그 검색, 알림 설정, 시스템 설정 관리</td></tr>
+                  <tr><td>도메인 전문가</td><td>점수 산출 로직 및 콘텐츠 검수 자문</td><td>분석 로직 검수 인터페이스, 응답 품질 모니터링(리뷰 모드)</td></tr>
+                </tbody>
+              </table>
+
+              <h2>3. 기능 요구사항</h2>
+
+              <h3>3.1 카카오톡 채널 챗봇</h3>
+              <ul>
+                <li><strong>[필수]</strong> 카카오 채널 친구추가 → 환영 메시지 → 본인인증 유도 플로우</li>
+                <li><strong>[필수]</strong> 카카오 i 오픈빌더 스킬서버 또는 Webhook 기반 메시지 라우팅</li>
+                <li><strong>[필수]</strong> 5초 응답 제한 대응을 위한 Callback API 활용</li>
+                <li><strong>[필수]</strong> 멀티턴 대화 상태 관리 (세션·컨텍스트 유지)</li>
+                <li><strong>[선택]</strong> 자주 묻는 질문(FAQ) 빠른 답장 버튼 구성</li>
+              </ul>
+
+              <h3>3.2 OpenAI GPT 연동</h3>
+              <ul>
+                <li><strong>[필수]</strong> 시스템 프롬프트 기반 헬스케어 도메인 페르소나 설정</li>
+                <li><strong>[필수]</strong> 사용자 입력 + 수집된 건강 데이터 기반 분석 응답 생성</li>
+                <li><strong>[필수]</strong> 특허 출원된 점수 산출 로직과 GPT 응답 결합 (NDA 후 확정)</li>
+                <li><strong>[필수]</strong> 토큰 비용 가드 및 사용량 모니터링</li>
+                <li><strong>[선택]</strong> 응답 품질 평가 및 프롬프트 개선용 로그 수집</li>
+              </ul>
+
+              <h3>3.3 외부 API 연동</h3>
+              <ul>
+                <li><strong>[필수]</strong> 공공기관 API 3~5개 연동 (NDA 후 리스트 확정, data.go.kr 등)</li>
+                <li><strong>[필수]</strong> 외부 민간 API 1~2개 (본인인증 기반 건강 데이터 자동 수집)</li>
+                <li><strong>[필수]</strong> 재시도·캐싱·폴백 정책 표준화</li>
+                <li><strong>[필수]</strong> API 호출 로그 및 실패 사유 관리자 페이지에서 조회 가능</li>
+              </ul>
+
+              <h3>3.4 사용자 데이터 저장</h3>
+              <ul>
+                <li><strong>[필수]</strong> 사용자 프로필 (카카오 식별자, 본인인증 결과, 동의 이력)</li>
+                <li><strong>[필수]</strong> 대화 이력 (메시지 단위 저장, 컨텍스트 윈도우 관리)</li>
+                <li><strong>[필수]</strong> 점수·분석 결과 이력</li>
+                <li><strong>[필수]</strong> 개인정보 동의/철회 이력 관리</li>
+              </ul>
+
+              <h3>3.5 스케줄러 + 알림톡 발송</h3>
+              <ul>
+                <li><strong>[필수]</strong> AWS EventBridge 또는 Node-cron 기반 스케줄러</li>
+                <li><strong>[필수]</strong> 카카오 알림톡 템플릿 등록·승인 가이드 제공, 발송 API 연동(Aligo 등)</li>
+                <li><strong>[필수]</strong> 발송 결과 수신 및 실패 재발송 정책</li>
+                <li><strong>[필수]</strong> 알림 발송 통계(성공/실패/오픈) 관리자 페이지 노출</li>
+              </ul>
+
+              <h3>3.6 관리자 페이지</h3>
+              <ul>
+                <li><strong>[필수]</strong> 운영자 로그인 (이메일+비밀번호, 2FA는 선택)</li>
+                <li><strong>[필수]</strong> 사용자 현황 대시보드 (가입·활성·이탈, 일/주/월별)</li>
+                <li><strong>[필수]</strong> 대화 로그 검색 및 필터 (사용자별/기간별/키워드)</li>
+                <li><strong>[필수]</strong> 알림 발송 통계 및 발송 로그</li>
+                <li><strong>[필수]</strong> 시스템 설정 (프롬프트, 알림 템플릿, API 키 관리)</li>
+                <li><strong>[선택]</strong> 도메인 전문가용 응답 품질 리뷰 모드</li>
+              </ul>
+
+              <h2>4. 비기능 요구사항</h2>
+              <table>
+                <thead>
+                  <tr><th>항목</th><th>요구사항</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>응답 성능</td><td>카카오톡 챗봇 1차 응답 5초 이내 (Callback 활용 시 추가 응답 시간 확보)</td></tr>
+                  <tr><td>외부 API 안정성</td><td>호출 실패 시 자동 재시도(최대 3회) + 캐시 폴백, 사용자 응답은 항상 보장</td></tr>
+                  <tr><td>보안</td><td>HTTPS, JWT 인증(관리자), 개인정보 암호화 저장, 본인인증 토큰 안전 관리</td></tr>
+                  <tr><td>개인정보보호</td><td>개인정보보호법 준수, 수집·이용 동의 이력 관리, 보관/파기 정책 적용</td></tr>
+                  <tr><td>운영성</td><td>CloudWatch 기반 모니터링, 알림 발송 실패 알람, 비용 가드</td></tr>
+                  <tr><td>확장성</td><td>스케줄러·발송 작업의 Lambda 분리 가능 구조, 트래픽 증가 시 수평 확장 가능</td></tr>
+                </tbody>
+              </table>
+
+              <h2>5. 기술 제약사항</h2>
+              <ul>
+                <li>카카오 비즈니스 채널·알림톡 발신 프로필 등록 및 템플릿 승인 절차(보통 영업일 기준 1~5일) → 일정 초반에 클라이언트 측에서 사전 진행 필요</li>
+                <li>OpenAI API·알림톡·AWS 사용료는 클라이언트 부담 (공고 명시) → 초기 비용 가드와 사용량 알람 필수</li>
+                <li>본인인증 외부 민간 API는 사업자 심사·계약 필요 → 클라이언트 측 계약 진행 일정 공유 필요</li>
+                <li>정부지원사업 결과 보고서 양식 → 산출물 형식은 보고서 기준에 맞춰 패키징</li>
+                <li>특허 출원된 점수 산출 로직은 NDA 체결 후에만 공유 → 1차 기획 단계에서 NDA 체결 선행 필요</li>
+              </ul>
+
+              <h2>6. 범위 외 사항 (Out of Scope)</h2>
+              <ul>
+                <li>네이티브 모바일 앱 (카카오톡 채널 인터페이스 중심)</li>
+                <li>의료기기 인증, 처방·진단 등 의료법 규제 대상 행위</li>
+                <li>결제·구독 기능 (MVP에서는 무료 채널 친구추가 모델)</li>
+                <li>다국어 (한국어 단일 기준, 향후 고도화 시 검토)</li>
+                <li>도메인 전문가용 별도 시스템 (관리자 페이지 내 리뷰 모드로 통합)</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+
+        <!-- PAGE: Timeline -->
+        <div id="page-timeline" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>일정 제안</h1>
+              <blockquote>총 60일 기준 5단계 마일스톤 및 산출물을 제안합니다. 1순위 일정 준수를 위해 주간 정기 미팅과 단계별 검수 체크포인트를 운영합니다.</blockquote>
+
+              <h2>전체 일정 요약</h2>
+              <table>
+                <thead>
+                  <tr><th>단계</th><th>기간</th><th>주요 산출물</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Phase 1: 기획·설계 확정</td><td>Day 1–9</td><td>요구사항 정의서 갱신, ERD, API 매핑, 카카오 채널·알림톡 사전 셋업 가이드</td></tr>
+                  <tr><td>Phase 2: 인프라·DB·챗봇 기본 연동</td><td>Day 10–21</td><td>AWS 환경 셋업, DB 마이그레이션, 카카오 챗봇 기본 응답</td></tr>
+                  <tr><td>Phase 3: OpenAI + 외부 API 연동</td><td>Day 22–36</td><td>GPT 연동·프롬프트, 공공/민간 API 연동, 분석 응답 통합</td></tr>
+                  <tr><td>Phase 4: 스케줄러·알림톡·관리자 페이지</td><td>Day 37–48</td><td>알림톡 자동 발송, 관리자 대시보드·로그·설정</td></tr>
+                  <tr><td>Phase 5: QA·배포·문서</td><td>Day 49–60</td><td>통합 테스트, 운영 환경 배포, 결과 보고 산출물</td></tr>
+                </tbody>
+              </table>
+            </article>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <h2 class="mb-4 text-sm font-semibold tracking-[0.14em] text-slate-500">상세 타임라인</h2>
+            <div class="timeline">
+              <div class="timeline-item">
+                <p class="text-sm font-semibold tracking-[0.14em] text-sky-700">PHASE 1</p>
+                <h4 class="text-base font-semibold text-slate-900">기획·설계 확정</h4>
+                <p class="mb-1 text-sm font-semibold text-amber-600">Day 1–9 (9일)</p>
+                <p class="text-sm leading-7 text-slate-600">NDA 체결, 클라이언트 보유 산출물 검토(요구사항 정의서, 화면설계서, IA, API 명세서), 특허 로직 매핑, DB 모델링, 카카오 비즈니스 채널/알림톡 발신 프로필 등록 사전 안내, 외부 민간 API 계약 일정 정리.</p>
+                <ul class="mt-2 list-disc pl-5 text-sm text-slate-500">
+                  <li>산출물: 갱신된 요구사항 정의서, ERD, API 매핑 표, 카카오 사전 셋업 체크리스트</li>
+                </ul>
+              </div>
+              <div class="timeline-item">
+                <p class="text-sm font-semibold tracking-[0.14em] text-sky-700">PHASE 2</p>
+                <h4 class="text-base font-semibold text-slate-900">인프라·DB·챗봇 기본 연동</h4>
+                <p class="mb-1 text-sm font-semibold text-amber-600">Day 10–21 (12일)</p>
+                <p class="text-sm leading-7 text-slate-600">AWS 환경 셋업(EC2/RDS/S3/Lambda/IAM), CI/CD 파이프라인 구성, DB 스키마 마이그레이션, 카카오 채널 스킬서버/Webhook 엔드포인트 구현, 멀티턴 상태 관리, Callback 응답 처리.</p>
+                <ul class="mt-2 list-disc pl-5 text-sm text-slate-500">
+                  <li>산출물: 운영 가능한 AWS 환경, 카카오톡 기본 응답 시나리오 동작</li>
+                </ul>
+              </div>
+              <div class="timeline-item">
+                <p class="text-sm font-semibold tracking-[0.14em] text-sky-700">PHASE 3</p>
+                <h4 class="text-base font-semibold text-slate-900">OpenAI + 외부 API 연동</h4>
+                <p class="mb-1 text-sm font-semibold text-amber-600">Day 22–36 (15일)</p>
+                <p class="text-sm leading-7 text-slate-600">OpenAI GPT API 연동, 시스템 프롬프트·페르소나 설계, 대화 컨텍스트 관리, 토큰 비용 가드, 공공 API 3~5개 연동(응답 정규화·캐싱·재시도), 본인인증 기반 민간 API 연동, 특허 점수 로직과 GPT 응답 결합.</p>
+                <ul class="mt-2 list-disc pl-5 text-sm text-slate-500">
+                  <li>산출물: AI 맞춤 응답 End-to-End 동작, 외부 API 안정 연동, 데모 시나리오</li>
+                </ul>
+              </div>
+              <div class="timeline-item">
+                <p class="text-sm font-semibold tracking-[0.14em] text-sky-700">PHASE 4</p>
+                <h4 class="text-base font-semibold text-slate-900">스케줄러·알림톡·관리자 페이지</h4>
+                <p class="mb-1 text-sm font-semibold text-amber-600">Day 37–48 (12일)</p>
+                <p class="text-sm leading-7 text-slate-600">EventBridge/Cron 스케줄러, 카카오 알림톡 템플릿 등록·발송, 발송 결과 수신·실패 재발송, Next.js 관리자 페이지(대시보드·대화 로그 검색·발송 통계·설정 관리) 구현.</p>
+                <ul class="mt-2 list-disc pl-5 text-sm text-slate-500">
+                  <li>산출물: 알림톡 자동 발송 동작, 관리자 페이지 1차 완성</li>
+                </ul>
+              </div>
+              <div class="timeline-item">
+                <p class="text-sm font-semibold tracking-[0.14em] text-sky-700">PHASE 5</p>
+                <h4 class="text-base font-semibold text-slate-900">QA·배포·문서</h4>
+                <p class="mb-1 text-sm font-semibold text-amber-600">Day 49–60 (12일)</p>
+                <p class="text-sm leading-7 text-slate-600">통합 테스트, 사용자 시나리오 검증, 보안·개인정보 점검, 성능·비용 최종 점검, 운영 환경 배포, API 명세서·DB 스키마·운영 매뉴얼·정부지원 결과 보고 산출물 패키지 작성, 1개월 무상 하자보수 진입.</p>
+                <ul class="mt-2 list-disc pl-5 text-sm text-slate-500">
+                  <li>산출물: 정식 운영 환경, 전체 문서 패키지, 결과 보고용 산출물</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h2>마일스톤 체크포인트</h2>
+              <table>
+                <thead>
+                  <tr><th>마일스톤</th><th>시점</th><th>검수 기준</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>M1: 기획·설계 확정</td><td>Day 9</td><td>요구사항 정의서·ERD·API 매핑 승인, NDA 기반 특허 로직 반영 확인</td></tr>
+                  <tr><td>M2: 챗봇 기본 응답</td><td>Day 21</td><td>카카오 채널에서 기본 메시지 응답 동작 확인</td></tr>
+                  <tr><td>M3: AI 분석 응답 데모</td><td>Day 36</td><td>건강 데이터 기반 GPT 분석 End-to-End 시연</td></tr>
+                  <tr><td>M4: 알림톡 + 관리자 페이지</td><td>Day 48</td><td>실제 알림톡 발송, 관리자 대시보드 1차 검수</td></tr>
+                  <tr><td>M5: 최종 검수·배포</td><td>Day 60</td><td>운영 환경 배포, 문서 패키지 인수인계 완료</td></tr>
+                </tbody>
+              </table>
+
+              <h2>커뮤니케이션 계획</h2>
+              <table>
+                <tr><th>항목</th><th>방식</th><th>주기</th></tr>
+                <tr><td>일일 진행 공유</td><td>Slack / 카카오톡</td><td>매일</td></tr>
+                <tr><td>주간 미팅</td><td>Zoom / Google Meet (필요 시 오프라인, 일산 인근 가능)</td><td>주 1회</td></tr>
+                <tr><td>마일스톤 리뷰</td><td>화면 공유 + 산출물 문서</td><td>각 단계 종료 시</td></tr>
+                <tr><td>이슈 트래킹</td><td>GitHub Issues</td><td>상시</td></tr>
+              </table>
+            </article>
+          </div>
+        </div>
+
+        <!-- PAGE: Portfolio -->
+        <div id="page-portfolio" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>유사 프로젝트 경험</h1>
+              <blockquote>본 프로젝트와 유사한 기능/기술 스택(헬스케어 도메인, OpenAI 연동, 다중 외부 API, 챗봇·AI 자동화)을 활용한 수행 경험을 소개합니다.</blockquote>
+            </article>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">133K+</p>
+              <p class="mt-1 text-sm text-slate-500">헬스케어 SaaS LOC</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">200+</p>
+              <p class="mt-1 text-sm text-slate-500">AI 보고서 연동 API 엔드포인트</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">134+</p>
+              <p class="mt-1 text-sm text-slate-500">AI 자동화 스킬 모듈</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">15+</p>
+              <p class="mt-1 text-sm text-slate-500">외부 API 연동 실적</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft backdrop-blur md:p-8">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">B2B SaaS · 헬스케어</div>
+              <h3 class="text-lg font-semibold tracking-tight text-slate-900">Harmony Link — 시니어 주간보호 관리 플랫폼</h3>
+              <p class="mt-1 text-sm text-slate-400">헬스케어 SaaS · 2025 (약 6개월) · 참여율 100%</p>
+              <div class="mt-3 doc-content">
+                <h4>프로젝트 개요</h4>
+                <p>주간보호센터·요양기관 운영 자동화를 위한 멀티테넌트 헬스케어 SaaS. 케어 로그, 투약 관리, 보호자 알림, 전자서명, AI 건강 분석을 6 플랫폼(Flutter/Next.js/React)에서 통합 제공.</p>
+                <h4>핵심 기능</h4>
+                <ul>
+                  <li>OpenAI 기반 건강 데이터 분석 및 보호자 리포트 생성</li>
+                  <li>케어 로그·투약·이상 징후 자동 알림 시스템</li>
+                  <li>멀티테넌트 아키텍처(센터별 데이터 격리, RBAC)</li>
+                  <li>전자서명·동의 이력 관리, 개인정보 안전 처리</li>
+                  <li>140+ API 엔드포인트, NestJS + AWS CDK 인프라</li>
+                </ul>
+                <h4>본 프로젝트와의 유사점</h4>
+                <ul>
+                  <li><strong>도메인 100% 일치</strong> — 건강 데이터 기반 개인 맞춤형 헬스케어 서비스</li>
+                  <li><strong>OpenAI 분석 응답 실서비스 운영</strong> — 본 프로젝트의 GPT 맞춤 분석과 동일 패턴</li>
+                  <li><strong>알림 시스템 운영 경험</strong> — 스케줄러 + 다중 채널 알림 발송 노하우 그대로 적용</li>
+                  <li><strong>AWS 기반 운영</strong> — 본 프로젝트의 AWS 인프라 요건과 동일</li>
+                  <li><strong>개인정보·동의 이력 관리</strong> — 본인인증 데이터 처리에 동일 패턴 적용</li>
+                </ul>
+                <h4>기술 스택</h4>
+                <div class="flex flex-wrap gap-1.5 not-prose">
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">NestJS</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">TypeScript</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Next.js</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">React</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Flutter</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">MySQL</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">AWS CDK</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">OpenAI</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Docker</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft backdrop-blur md:p-8">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">핀테크 · AI 자동화</div>
+              <h3 class="text-lg font-semibold tracking-tight text-slate-900">Series-B — VC 펀드 관리 플랫폼</h3>
+              <p class="mt-1 text-sm text-slate-400">핀테크 SaaS · 2023.11~2024.12 (14개월) · 참여율 100%</p>
+              <div class="mt-3 doc-content">
+                <h4>프로젝트 개요</h4>
+                <p>VC 펀드 라이프사이클을 관리하는 B2B SaaS. ChatGPT 기반 AI 투자 보고서 자동 생성, NICE KYC 본인인증, VICS 규제 5종 양식, 다중 외부 API, 50+ 페이지 관리자 포탈을 통합 운영.</p>
+                <h4>핵심 기능</h4>
+                <ul>
+                  <li>ChatGPT API 기반 AI 투자 보고서 자동 생성 (프롬프트 엔지니어링·컨텍스트 관리)</li>
+                  <li>NICE KYC 본인인증 + 다수 규제 API 안정 연동</li>
+                  <li>50+ 페이지 운영자 포탈 (대시보드·로그·설정·통계)</li>
+                  <li>200~300+ API 엔드포인트, NestJS + Next.js + MySQL</li>
+                  <li>5계층 보안 + DLP + GeoIP</li>
+                </ul>
+                <h4>본 프로젝트와의 유사점</h4>
+                <ul>
+                  <li><strong>OpenAI 실서비스 운영 경험</strong> — 본 프로젝트의 GPT 맞춤 응답·분석과 동일 패턴</li>
+                  <li><strong>본인인증 + 다중 외부 API 연동</strong> — 민간 본인인증 API 연동에 그대로 적용</li>
+                  <li><strong>관리자 포탈 운영 노하우</strong> — 대시보드/로그/설정 관리 본 프로젝트 관리자 페이지 설계에 직접 반영</li>
+                  <li><strong>대규모 백엔드 안정성</strong> — 외부 API 장애 대응·재시도·캐싱 패턴 표준화 경험</li>
+                </ul>
+                <h4>기술 스택</h4>
+                <div class="flex flex-wrap gap-1.5 not-prose">
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">NestJS</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Next.js</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">TypeScript</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">MySQL</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">AWS</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">ChatGPT API</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">NICE KYC</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft backdrop-blur md:p-8">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">AI · 자동화 · 챗봇</div>
+              <h3 class="text-lg font-semibold tracking-tight text-slate-900">AI Agent — AI-Native 개발 프레임워크</h3>
+              <p class="mt-1 text-sm text-slate-400">AI/자동화 · 2025~ (47일간 236 커밋) · 참여율 100%</p>
+              <div class="mt-3 doc-content">
+                <h4>프로젝트 개요</h4>
+                <p>멀티 LLM 오케스트레이션 기반 AI 에이전트 프레임워크. 챗봇·자동화 워크플로우, 134+ 스킬 모듈, 12 품질 게이트, 페르소나 기반 응답 설계, MCP(Model Context Protocol) 통합.</p>
+                <h4>핵심 기능</h4>
+                <ul>
+                  <li>멀티 LLM(Claude, GPT 등) 오케스트레이션 및 라우팅</li>
+                  <li>프롬프트 엔지니어링·컨텍스트 관리·페르소나 시스템</li>
+                  <li>외부 도구·API 자동 호출 (MCP/Function Calling 패턴)</li>
+                  <li>대화 이력·세션 상태 관리, 토큰 비용 가드</li>
+                  <li>839 지식 문서, 134+ 스킬, 236 커밋</li>
+                </ul>
+                <h4>본 프로젝트와의 유사점</h4>
+                <ul>
+                  <li><strong>챗봇·AI 응답 설계 노하우</strong> — 카카오톡 챗봇의 시나리오 라우팅 및 멀티턴 대화 관리에 동일 적용</li>
+                  <li><strong>프롬프트·컨텍스트 관리</strong> — 본 프로젝트의 GPT 시스템 프롬프트·페르소나 설계에 직접 반영</li>
+                  <li><strong>외부 도구 자동 호출 패턴</strong> — 공공·민간 API 자동 연동 흐름 설계에 그대로 적용</li>
+                  <li><strong>토큰 비용 가드</strong> — OpenAI 사용량 모니터링 및 비용 가드 운영 경험</li>
+                </ul>
+                <h4>기술 스택</h4>
+                <div class="flex flex-wrap gap-1.5 not-prose">
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">TypeScript</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Hono</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">React</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Vite</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">PostgreSQL</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Claude SDK</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">MCP</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50 to-brand-50 p-6 text-center shadow-soft md:p-10">
+            <h2 class="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">함께 만들어 가겠습니다</h2>
+            <p class="mx-auto mt-3 max-w-lg text-sm leading-7 text-slate-600">프로젝트에 대해 더 자세한 논의를 원하시면 미팅을 신청해 주세요.</p>
+          </div>
+        </div>
+
+        <div id="page-nav" class="mt-6 flex items-center justify-between gap-4" style="display:none;">
+          <a id="nav-prev" href="#home"
+             class="group flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/90 px-5 py-3 shadow-soft backdrop-blur transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+            <svg class="w-5 h-5 text-slate-400 transition group-hover:text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            <span>
+              <span class="block text-xs text-slate-400">이전</span>
+              <span id="nav-prev-label" class="block text-sm font-semibold text-slate-700 group-hover:text-sky-700">홈</span>
+            </span>
+          </a>
+          <a id="nav-next" href="#overview"
+             class="group flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/90 px-5 py-3 shadow-soft backdrop-blur transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white text-right ml-auto">
+            <span>
+              <span class="block text-xs text-slate-400">다음</span>
+              <span id="nav-next-label" class="block text-sm font-semibold text-slate-700 group-hover:text-sky-700">프로젝트 소개</span>
+            </span>
+            <svg class="w-5 h-5 text-slate-400 transition group-hover:text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+
+      </main>
+    </div>
+
+    <footer class="mt-10 border-t border-slate-200 pt-6 text-xs text-slate-500">
+      &copy; 2026 &middot; 본 제안서는 AI 기반 카카오톡 챗봇 서비스 MVP 개발 (OpenAI 연동) 프로젝트를 위해 작성되었습니다.
+    </footer>
+  </div>
+
+  <script>
+    const pages = ['home', 'overview', 'estimate', 'manday', 'prd', 'timeline', 'portfolio'];
+    const pageLabels = {
+      home: '홈', overview: '프로젝트 소개', estimate: '견적서',
+      manday: '공수계산서', prd: 'PRD', timeline: '일정 제안', portfolio: '유사 프로젝트 경험'
+    };
+
+    function navigate(pageId) {
+      if (!pages.includes(pageId)) pageId = 'home';
+      document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById('page-' + pageId);
+      if (target) target.classList.add('active');
+      document.querySelectorAll('.nav-link').forEach(link => {
+        if (link.dataset.page === pageId) {
+          link.className = 'nav-link block rounded-xl border px-3 py-2 text-sm border-sky-200 bg-sky-50 font-medium text-sky-700';
+        } else {
+          link.className = 'nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900';
+        }
+      });
+      updatePageNav(pageId);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      closeSidebar();
+    }
+
+    function updatePageNav(pageId) {
+      const nav = document.getElementById('page-nav');
+      const idx = pages.indexOf(pageId);
+      const prevBtn = document.getElementById('nav-prev');
+      const nextBtn = document.getElementById('nav-next');
+      const prevLabel = document.getElementById('nav-prev-label');
+      const nextLabel = document.getElementById('nav-next-label');
+      nav.style.display = (pageId === 'home') ? 'none' : 'flex';
+      if (idx > 0) {
+        prevBtn.href = '#' + pages[idx - 1];
+        prevLabel.textContent = pageLabels[pages[idx - 1]];
+        prevBtn.style.visibility = 'visible';
+      } else {
+        prevBtn.style.visibility = 'hidden';
+      }
+      if (idx < pages.length - 1) {
+        nextBtn.href = '#' + pages[idx + 1];
+        nextLabel.textContent = pageLabels[pages[idx + 1]];
+        nextBtn.style.visibility = 'visible';
+      } else {
+        nextBtn.style.visibility = 'hidden';
+      }
+    }
+
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebar-backdrop').classList.remove('open');
+    }
+
+    function handleHash() {
+      const hash = (location.hash || '#home').replace('#', '');
+      navigate(hash);
+    }
+    window.addEventListener('hashchange', handleHash);
+    window.addEventListener('DOMContentLoaded', handleHash);
+
+    document.getElementById('sidebar-toggle').addEventListener('click', function() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebar-backdrop').classList.toggle('open');
+    });
+  </script>
+</body>
+</html>
